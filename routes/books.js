@@ -32,7 +32,7 @@ router.get('/',  async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT books.id, books.title, books.description, books.genre,
-             books.cover_image_url, categories.name AS category_name
+             books.cover_image_url, books.category_id, categories.name AS category_name
       FROM books
       LEFT JOIN categories ON books.category_id = categories.id
       ORDER BY books.created_at DESC

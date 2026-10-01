@@ -1,10 +1,11 @@
 const express = require('express');
 const pool = require('../db');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Create a new category
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
   const { name } = req.body;
 
   if (!name || !name.trim()) {
@@ -41,7 +42,7 @@ router.get('/', async (req, res) => {
 });
 
 // Update a category
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
 
@@ -67,7 +68,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete a category
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
 
   try {
