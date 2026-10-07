@@ -6,7 +6,7 @@ const router = express.Router();
 
 // Create a new book
 router.post('/', requireAuth, requireAdmin, async (req, res) => {
-  const { title, description, genre, categoryId, coverImageUrl } = req.body;
+  const { title, author, description, genre, categoryId, coverImageUrl } = req.body;
 
   if (!title || !title.trim()) {
     return res.status(400).json({ error: 'Book title is required.' });
@@ -14,10 +14,10 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO books (title, description, genre, category_id, cover_image_url)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, title, description, genre, category_id, cover_image_url`,
-      [title, description || null, genre || null, categoryId || null, coverImageUrl || null]
+      `INSERT INTO books (title, author, description, genre, category_id, cover_image_url)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, title, author, description, genre, category_id, cover_image_url`,
+      [title, author || null, description || null, genre || null, categoryId || null, coverImageUrl || null]
     );
 
     res.status(201).json({ message: 'Book created.', book: result.rows[0] });
@@ -31,7 +31,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 router.get('/',  async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT books.id, books.title, books.description, books.genre,
+      SELECT books.id, books.title, books.author, books.description, books.genre,
              books.cover_image_url, books.category_id, categories.name AS category_name
       FROM books
       LEFT JOIN categories ON books.category_id = categories.id
@@ -47,7 +47,7 @@ router.get('/',  async (req, res) => {
 // Update a book
 router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { title, description, genre, categoryId, coverImageUrl } = req.body;
+  const { title, author, description, genre, categoryId, coverImageUrl } = req.body;
 
   if (!title || !title.trim()) {
     return res.status(400).json({ error: 'Book title is required.' });
@@ -56,10 +56,10 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
       `UPDATE books
-       SET title = $1, description = $2, genre = $3, category_id = $4, cover_image_url = $5
-       WHERE id = $6
-       RETURNING id, title, description, genre, category_id, cover_image_url`,
-      [title, description || null, genre || null, categoryId || null, coverImageUrl || null, id]
+       SET title = $1, author = $2, description = $3, genre = $4, category_id = $5, cover_image_url = $6
+       WHERE id = $7
+       RETURNING id, title, author, description, genre, category_id, cover_image_url`,
+      [title, author || null, description || null, genre || null, categoryId || null, coverImageUrl || null, id]
     );
 
     if (result.rows.length === 0) {

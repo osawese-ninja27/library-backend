@@ -6,11 +6,15 @@ const categoryRoutes = require('./routes/categories');
 const bookRoutes = require('./routes/books');
 const uploadRoutes = require('./routes/upload');
 const userRoutes = require('./routes/users');
+const userBlockRoutes = require('./routes/userBlock');
+const passwordRoutes = require('./routes/password');
 const app = express();
 
 app.use(express.json());
 app.use(cors());
 app.use('/api', authRoutes);
+app.use('/api/users/password', passwordRoutes);
+app.use('/api/users', userBlockRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/categories', categoryRoutes);
