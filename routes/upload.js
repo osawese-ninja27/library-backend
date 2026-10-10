@@ -1,15 +1,11 @@
 const express = require('express');
-const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const uploadImage = require('../middleware/uploadImage');
 
 const router = express.Router();
 
-// Store the file in memory temporarily, not on disk
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-
-router.post('/', requireAuth, requireAdmin, upload.single('image'), async (req, res) => {
+router.post('/', requireAuth, requireAdmin, uploadImage, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No image file provided.' });
   }

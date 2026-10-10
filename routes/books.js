@@ -1,8 +1,12 @@
 const express = require('express');
 const pool = require('../db');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const validateId = require('../middleware/validateId');
 
 const router = express.Router();
+
+// Reject non-numeric ids like /abc before they reach the database
+router.param('id', validateId);
 
 // Create a new book
 router.post('/', requireAuth, requireAdmin, async (req, res) => {

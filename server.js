@@ -1,39 +1,53 @@
+require('dotenv').config(); // must be first so every file below can read .env
+
 const express = require('express');
-const pool = require('./db');
-const cors = require('cors');
-const authRoutes = require('./routes/auth');
+const helmet = require('helmet');
+const corsConfig = require('./config/cors');
+const { notFound, errorHandler } = require('./middleware/errorHandler');
+
+const registerRoutes = require('./routes/register');
+const loginRoutes = require('./routes/login');
 const categoryRoutes = require('./routes/categories');
 const bookRoutes = require('./routes/books');
 const uploadRoutes = require('./routes/upload');
 const userRoutes = require('./routes/users');
 const userBlockRoutes = require('./routes/userBlock');
 const passwordRoutes = require('./routes/password');
+
 const app = express();
 
+// When hosted behind a proxy (Render, Railway, Vercel...), set TRUST_PROXY=1 in the environment
+// so rate limiting sees each visitor's real address instead of the proxy's.
+if (process.env.TRUST_PROXY) {
+  app.set('trust proxy', Number(process.env.TRUST_PROXY));
+}
+
+app.use(helmet());
+app.use(corsConfig);
 app.use(express.json());
-app.use(cors());
-app.use('/api', authRoutes);
-app.use('/api/users/password', passwordRoutes);
+
+app.use('/api/register', registerRoutes);
+app.use('/api/login', loginRoutes);
+app.use('/api/users/password', passwordRoutes); // keep above /api/users
 app.use('/api/users', userBlockRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/upload', uploadRoutes);
 
-app.get('/db-test', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT NOW()');
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Database connection failed' });
-  }
+// Simple check that the server is up (used by hosting services). Reveals nothing about the database.
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
 });
 
 app.get('/', (req, res) => {
   res.send('Library server is running');
 });
 
-app.listen(3000, () => {
-  console.log('Server listening on port 3000');
+app.use(notFound);
+app.use(errorHandler);
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
 });
