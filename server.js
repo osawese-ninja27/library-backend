@@ -13,6 +13,7 @@ const uploadRoutes = require('./routes/upload');
 const userRoutes = require('./routes/users');
 const userBlockRoutes = require('./routes/userBlock');
 const passwordRoutes = require('./routes/password');
+const favoriteRoutes = require('./routes/favorites');
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/favorites', favoriteRoutes);
 
 // Simple check that the server is up (used by hosting services). Reveals nothing about the database.
 app.get('/health', (req, res) => {
@@ -48,6 +50,11 @@ app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, (err) => {
+  // Express 5 passes start-up problems (such as the port already being in use) to this function.
+  if (err) {
+    console.error(`Could not start the server on port ${PORT}: ${err.message}`);
+    process.exit(1);
+  }
   console.log(`Server listening on port ${PORT}`);
 });
