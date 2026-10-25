@@ -15,6 +15,8 @@ const userBlockRoutes = require('./routes/userBlock');
 const passwordRoutes = require('./routes/password');
 const borrowingRoutes = require('./routes/borrowings');
 const adminBorrowingRoutes = require('./routes/adminBorrowings');
+const favoriteRoutes = require('./routes/favorites');
+const notesRoutes = require('./routes/notes');
 
 const app = express();
 
@@ -38,6 +40,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/borrowings', borrowingRoutes);
 app.use('/api/admin/borrowings', adminBorrowingRoutes);
+app.use('/api/favorites', favoriteRoutes);
+api.use('./api/notes', notesRoutes)
 
 // Simple check that the server is up (used by hosting services). Reveals nothing about the database.
 app.get('/health', (req, res) => {
