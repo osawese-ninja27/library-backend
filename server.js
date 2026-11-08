@@ -4,7 +4,6 @@ const express = require('express');
 const helmet = require('helmet');
 const corsConfig = require('./config/cors');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
-
 const registerRoutes = require('./routes/register');
 const loginRoutes = require('./routes/login');
 const categoryRoutes = require('./routes/categories');
@@ -17,6 +16,7 @@ const borrowingRoutes = require('./routes/borrowings');
 const adminBorrowingRoutes = require('./routes/adminBorrowings');
 const favoriteRoutes = require('./routes/favorites');
 const notesRoutes = require('./routes/notes');
+const alertsRoutes = require('./routes/alerts');
 
 const app = express();
 
@@ -41,7 +41,8 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/borrowings', borrowingRoutes);
 app.use('/api/admin/borrowings', adminBorrowingRoutes);
 app.use('/api/favorites', favoriteRoutes);
-api.use('./api/notes', notesRoutes)
+app.use('/api/notes', notesRoutes);
+app.use('/api/alerts', alertsRoutes)
 
 // Simple check that the server is up (used by hosting services). Reveals nothing about the database.
 app.get('/health', (req, res) => {
