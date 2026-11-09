@@ -32,7 +32,10 @@ CREATE TABLE IF NOT EXISTS books (
 
 -- The app connects as library_app, which can read and write data but not change tables.
 -- Create it first if needed:  CREATE ROLE library_app LOGIN PASSWORD 'choose-a-strong-password';
-GRANT CONNECT ON DATABASE library TO library_app;
+DO $$
+BEGIN
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO library_app', current_database());
+END $$;
 GRANT USAGE ON SCHEMA public TO library_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO library_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO library_app;

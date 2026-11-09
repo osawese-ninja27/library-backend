@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "migrate": "node database/migrate.js",
+    "migrate:status": "node database/migrate.js --status"
   },
   "keywords": [],
   "author": "",

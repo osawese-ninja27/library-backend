@@ -1,11 +1,37 @@
 const { Pool } = require('pg');
 
-const pool = new Pool({
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
+// How the app finds the database:
+//   Hosted (Supabase, Neon, ...): set ONE value, DATABASE_URL, in the hosting service's settings.
+//   Local: leave DATABASE_URL out and use the separate DB_USER / DB_PASSWORD / DB_HOST / DB_PORT / DB_NAME in .env.
+const hostedUrl = process.env.DATABASE_URL;
+
+const config = hostedUrl
+  ? { connectionString: hostedUrl }
+  : {
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      database: process.env.DB_NAME,
+    };
+
+// Hosted databases only accept encrypted connections; a local Postgres usually has no SSL.
+// DB_SSL=true / DB_SSL=false overrides this guess if you ever need to.
+// (Do not put ?sslmode=require in DATABASE_URL: it would override this setting and fail certificate checks.)
+const useSsl = process.env.DB_SSL ? process.env.DB_SSL === 'true' : Boolean(hostedUrl);
+if (useSsl) {
+  config.ssl = { rejectUnauthorized: false }; // encrypted; does not verify the host's certificate chain
+}
+
+// How many connections this server keeps open. On serverless hosting every instance has its own
+// pool, so set DB_POOL_MAX=3 (or similar) there to avoid using up the database's connection limit.
+config.max = Number(process.env.DB_POOL_MAX) || 10;
+
+const pool = new Pool(config);
+
+// A hosted database can drop an idle connection. Without this handler that would crash the server.
+pool.on('error', (err) => {
+  console.error('Unexpected database connection error:', err.message);
 });
 
 module.exports = pool;
