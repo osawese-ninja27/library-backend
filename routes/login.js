@@ -7,6 +7,9 @@ const { normalizeEmail } = require('../utils/validators');
 
 const router = express.Router();
 
+// How long one login lasts. A shorter time limits what a stolen token can do.
+const TOKEN_LIFETIME = '1d';
+
 // Used when the email doesn't exist, so a wrong email and a wrong password take the same time.
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
 
@@ -21,7 +24,7 @@ router.post('/', loginLimiter, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT id, surname, first_name, email, password_hash, role, is_blocked
+      `SELECT id, surname, first_name, email, password_hash, role, is_blocked, token_version
        FROM users WHERE LOWER(email) = $1`,
       [email]
     );
@@ -41,9 +44,11 @@ router.post('/', loginLimiter, async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, role: user.role },
+      // tv = token_version: when an admin resets this user's password, the number in the
+      // database goes up and every token carrying the old number stops working.
+      { id: user.id, role: user.role, tv: user.token_version },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: TOKEN_LIFETIME }
     );
 
     res.json({

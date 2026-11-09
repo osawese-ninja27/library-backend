@@ -10,6 +10,7 @@ const SALT_ROUNDS = 10;
 
 // Set a new password for a user (admin only). Body: { email, newPassword }
 // Mounted at /api/users/password.
+// Adding 1 to token_version also logs the user out everywhere: their old tokens stop working.
 // The admin account's own password can only be changed directly in the database.
 router.put('/', requireAuth, requireAdmin, async (req, res) => {
   const { newPassword } = req.body;
@@ -29,7 +30,7 @@ router.put('/', requireAuth, requireAdmin, async (req, res) => {
     const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
     const result = await pool.query(
-      `UPDATE users SET password_hash = $1
+      `UPDATE users SET password_hash = $1, token_version = token_version + 1
        WHERE LOWER(email) = $2 AND role <> 'admin'
        RETURNING id`,
       [hash, email]

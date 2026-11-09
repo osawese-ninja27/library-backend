@@ -87,8 +87,38 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'totalCopies must be a whole number from 0 to 100.' });
   }
 
+  // A dedicated connection, because the lock, the check and the update must run as one transaction.
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
+    await client.query('BEGIN');
+
+    // Lock this book's row. This is the same lock the request route (routes/borrowings.js) takes,
+    // so nobody can request a copy in the split second between our check and our update.
+    const found = await client.query('SELECT id FROM books WHERE id = $1 FOR UPDATE', [id]);
+    if (found.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Book not found.' });
+    }
+
+    // The total can never drop below the copies already borrowed or held by a live request.
+    if (copies !== null) {
+      const inUse = await client.query(
+        `SELECT COUNT(*)::int AS count
+         FROM borrowings
+         WHERE book_id = $1
+           AND (status = 'borrowed' OR (status = 'pending' AND expires_at > now()))`,
+        [id]
+      );
+      const taken = inUse.rows[0].count;
+      if (copies < taken) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `Cannot set the total to ${copies}: ${taken} ${taken === 1 ? 'copy is' : 'copies are'} currently borrowed or held by a request.`,
+        });
+      }
+    }
+
+    const result = await client.query(
       `UPDATE books
        SET title = $1, author = $2, description = $3, genre = $4, category_id = $5, cover_image_url = $6,
            total_copies = COALESCE($7, total_copies)
@@ -97,14 +127,14 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
       [title, author || null, description || null, genre || null, categoryId || null, coverImageUrl || null, copies, id]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Book not found.' });
-    }
-
+    await client.query('COMMIT');
     res.json({ message: 'Book updated.', book: result.rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error(err);
     res.status(500).json({ error: 'Something went wrong updating the book.' });
+  } finally {
+    client.release(); // always hand the connection back to the pool
   }
 });
 
