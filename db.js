@@ -1,4 +1,6 @@
 const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
 
 // How the app finds the database:
 //   Hosted (Supabase, Neon, ...): set ONE value, DATABASE_URL, in the hosting service's settings.
@@ -20,16 +22,23 @@ const config = hostedUrl
 // (Do not put ?sslmode=require in DATABASE_URL: it would override this setting and fail certificate checks.)
 const useSsl = process.env.DB_SSL ? process.env.DB_SSL === 'true' : Boolean(hostedUrl);
 if (useSsl) {
-  config.ssl = { rejectUnauthorized: false }; // encrypted; does not verify the host's certificate chain
+  const caPath = path.join(__dirname, 'certs', 'supabase-ca.crt');
+  if (fs.existsSync(caPath)) {
+    config.ssl = { ca: fs.readFileSync(caPath, 'utf8'), rejectUnauthorized: true };
+  } else {
+    console.warn('Supabase CA file not found; connecting without certificate verification.');
+    config.ssl = { rejectUnauthorized: false };
+  }
 }
-
 // How many connections this server keeps open. On serverless hosting every instance has its own
 // pool, so set DB_POOL_MAX=3 (or similar) there to avoid using up the database's connection limit.
 config.max = Number(process.env.DB_POOL_MAX) || 10;
-
-const pool = new Pool(config);
+config.connectionTimeoutMillis = 5000; // fail fast if the database can't be reached
 
 // A hosted database can drop an idle connection. Without this handler that would crash the server.
+const pool = new Pool(config);
+
+
 pool.on('error', (err) => {
   console.error('Unexpected database connection error:', err.message);
 });
