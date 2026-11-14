@@ -75,33 +75,63 @@ function cleanDescription(text) {
 async function fromOpenLibrary(title, author) {
   const out = { description: null, coverUrl: null };
   try {
-    const q = `https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&limit=1&fields=key,cover_i`;
-    const doc = (await getJson(q)).docs?.[0];
-    if (!doc) return out;
-    if (doc.cover_i) out.coverUrl = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg?default=false`;
-    const work = await getJson(`https://openlibrary.org${doc.key}.json`);
-    const d = typeof work.description === 'string' ? work.description : work.description?.value;
-    out.description = cleanDescription(d);
+    // Look at the top 3 matches (not just the first) and keep the first one that has a description
+    const q = `https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&limit=3&fields=key,cover_i`;
+    const docs = (await getJson(q)).docs || [];
+    for (const doc of docs) {
+      if (!out.coverUrl && doc.cover_i) {
+        out.coverUrl = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg?default=false`;
+      }
+      if (out.description) continue;
+      try {
+        const work = await getJson(`https://openlibrary.org${doc.key}.json`);
+        const d = typeof work.description === 'string' ? work.description : work.description?.value;
+        out.description = cleanDescription(d);
+      } catch (e) {
+        /* try the next match */
+      }
+    }
   } catch (e) {
     /* ignore, we have a backup source */
   }
   return out;
 }
 
+// Google Books can return 429 (too many requests) - wait and retry once
+async function googleSearch(q) {
+  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=5&printType=books`;
+  try {
+    return await getJson(url);
+  } catch (e) {
+    if (String(e.message).includes('429')) {
+      await sleep(3000);
+      return getJson(url);
+    }
+    throw e;
+  }
+}
+
 async function fromGoogleBooks(title, author) {
   const out = { description: null, coverUrl: null };
-  try {
-    const q = `intitle:"${title}" inauthor:"${author}"`;
-    const data = await getJson(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=1&printType=books`);
-    const info = data.items?.[0]?.volumeInfo;
-    if (!info) return out;
-    out.description = cleanDescription(info.description);
-    const thumb = info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail;
-    if (thumb) {
-      out.coverUrl = thumb.replace('http://', 'https://').replace('&edge=curl', '').replace('zoom=1', 'zoom=2');
+  // Strict search first, then a looser one if that finds nothing useful
+  const queries = [`intitle:"${title}" inauthor:"${author}"`, `${title} ${author}`];
+  for (const q of queries) {
+    try {
+      const items = (await googleSearch(q)).items || [];
+      for (const item of items) {
+        const info = item.volumeInfo || {};
+        if (!out.description) out.description = cleanDescription(info.description);
+        const thumb = info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail;
+        if (!out.coverUrl && thumb) {
+          out.coverUrl = thumb.replace('http://', 'https://').replace('&edge=curl', '').replace('zoom=1', 'zoom=2');
+        }
+        if (out.description && out.coverUrl) break;
+      }
+    } catch (e) {
+      /* ignore and try the next query */
     }
-  } catch (e) {
-    /* ignore */
+    if (out.description && out.coverUrl) break;
+    await sleep(300);
   }
   return out;
 }
