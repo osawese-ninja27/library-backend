@@ -1,0 +1,16 @@
+{
+  "added": [
+    "The Pragmatic Programmer",
+    "Eloquent JavaScript",
+    "Introduction to Algorithms",
+    "Design Patterns"
+  ],
+  "skipped": [],
+  "needsAttention": [
+    {
+      "title": "Clean Code",
+      "author": "Robert C. Martin",
+      "problem": "no description"
+    }
+  ]
+}
